@@ -1,6 +1,6 @@
 # MCUFormer: Deploying Vision Transformers on Microcontrollers with Limited Memory
 
-**This is an official implementation of AutoFormer.**
+**This is an official implementation of MCUFormer.**
 
 MCUFormer is an one-shot network architecture search (NAS) to discover the optimal architecture with highest task performance given the memory budget from the microcontrollers. For the construction of the inference operator library of vision transformers, we schedule the memory buffer during inference through operator integration, patch embedding decomposition, and token overwriting, allowing the memory buffer to be fully utilized to adapt to the forward pass of the vision transformer.
 
