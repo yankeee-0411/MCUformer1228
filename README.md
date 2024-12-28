@@ -1,31 +1,15 @@
-# AutoFormer: Searching Transformers for Visual Recognition
+# MCUFormer: Deploying Vision Transformers on Microcontrollers with Limited Memory
 
 **This is an official implementation of AutoFormer.**
 
-AutoFormer is new one-shot architecture search framework dedicated to vision transformer search. It entangles the weights of different vision transformer blocks in the same layers during supernet training. 
-Benefiting from the strategy, the trained supernet allows thousands of subnets to be very well-trained. Specifically, the performance of these subnets with weights inherited from the supernet is comparable to those retrained from scratch.
-
-<div align="center">
-    <img width="49%" alt="AutoFormer overview" src="https://github.com/microsoft/AutoML/releases/download/static_files/autoformer_overview.gif"/>
-    <img width="49%" alt="AutoFormer detail" src="https://github.com/microsoft/AutoML/releases/download/static_files/autoformer_details.gif"/>
-</div>
-
-
-## Highlights
-- Once-for-all
-
-AutoFormer is a simple yet effective method to train a once-for-all vision transformer supernet.
-
-- Competive performance
-
-AutoFormers consistently outperform DeiTs.
+MCUFormer is an one-shot network architecture search (NAS) to discover the optimal architecture with highest task performance given the memory budget from the microcontrollers. For the construction of the inference operator library of vision transformers, we schedule the memory buffer during inference through operator integration, patch embedding decomposition, and token overwriting, allowing the memory buffer to be fully utilized to adapt to the forward pass of the vision transformer.
 
 ## Environment Setup
 
 To set up the enviroment you can easily run the following command:
 ```buildoutcfg
-conda create -n Autoformer python=3.6
-conda activate Autoformer
+conda create -n MCUFormer python=3.7
+conda activate MCUFormer
 pip install -r requirements.txt
 ```
 
@@ -47,32 +31,18 @@ The directory structure is the standard layout as following.
       img4.jpeg
 ```
 
-
-## Model Zoo
-For evaluation, we provide the checkpoints of our models in [Google Drive](https://drive.google.com/drive/folders/1HqzY3afqQUMI6pJ5_BgR2RquJU_b_3eg?usp=sharing) and [GitHub](https://github.com/silent-chen/AutoFormer-model-zoo).
-
-After downloading the models, you can do the evaluation following the description in *Quick Start - Test*).
-
-Model download links:
-
-Model | Params. | Top-1 Acc. % | Top-5 Acc. % | Download link 
---- |:---:|:---:|:---:|:---:
-AutoFormer-T | 5.8M | 75.3 | 92.7 | [Google Drive](https://drive.google.com/file/d/1uRCW3doQHgn2H-LjyalYEZ4CvmnQtr6Q/view?usp=sharing), [GitHub](https://github.com/silent-chen/AutoFormer-model-zoo/releases/download/v1.0/supernet-tiny.pth)
-AutoFormer-S | 22.9M | 81.7 | 95.7 | [Google Drive](https://drive.google.com/file/d/1JTBmLR_nW7-ZbTKafWFvSl8J2orJXiNa/view?usp=sharing), [GitHub](https://github.com/silent-chen/AutoFormer-model-zoo/releases/download/v1.0/supernet-small.pth)
-AutoFormer-B | 53.7M | 82.4 | 95.7 | [Google Drive](https://drive.google.com/file/d/1KPjUshk0SbqkaTzlirjPHM9pu19N5w0e/view?usp=sharing), [GitHub](https://github.com/silent-chen/AutoFormer-model-zoo/releases/download/v1.0/supernet-base.pth)
-
-
 ## Quick Start
 We provide *Supernet Train, Search, Test* code of AutoFormer as follows.
 
 ### Supernet Train 
 
-To train the supernet-T/S/B, we provided the corresponding supernet configuration files in `/experiments/supernet/`. For example, to train the supernet-B, you can run the following command. The default output path is `./`, you can specify the path with argument `--output`.
-
+You can run the following command to get the optimal supernet.
 ```buildoutcfg
 python -m torch.distributed.launch --nproc_per_node=8 --use_env supernet_train.py --data-path /PATH/TO/IMAGENT --gp \
---change_qk --relative_position --mode super --dist-eval --cfg ./experiments/supernet/supernet-B.yaml --epochs 500 --warmup-epochs 20 \
---output /OUTPUT_PATH --batch-size 128
+--change_qk --relative_position --mode super --dist-eval --load-pretrained-model \
+--cfg ./experiments/supernet/supernet-T.yaml --cfg-new  ./experiments/supernet/supernet-T-new.yaml \
+--epochs 500 --warmup-epochs 5 --lr 1e-4 --super_epoch 1 --step-num 7 \
+--model deit_tiny_patch16_224 --batch-size 128 --output /OUTPUT_PATH
 ```
 
 ### Search
@@ -80,45 +50,14 @@ We run our evolution search on part of the ImageNet training dataset and use the
 ```buildoutcfg
 python ./lib/subImageNet.py --data-path /PATH/TO/IMAGENT
 ```
- 
 
-After obtaining the subImageNet and training of the supernet. We could perform the evolution search using below command. Please remember to config the specific constraint in this evolution search using `--min-param-limits` and `--param-limits`: 
+After obtaining the subImageNet and training of the supernet. You can run the following command to search the optimal subnet. Please remember to config the specific constraint in this evolution search using `--memory-constraint`: 
 ```buildoutcfg
 python -m torch.distributed.launch --nproc_per_node=8 --use_env evolution.py --data-path /PATH/TO/IMAGENT --gp \
---change_qk --relative_position --dist-eval --cfg ./experiments/supernet/supernet-B.yaml --resume /PATH/TO/CHECKPOINT \
---min-param-limits YOUR/CONFIG --param-limits YOUR/CONFIG --data-set EVO_IMNET
+--change_qk --relative_position --dist-eval --input-size 240 --resume /PATH/TO/CHECKPOINT \
+--cfg ./experiments/supernet/supernet-T.yaml --cfg-new  ./experiments/supernet/supernet-T-new.yaml \
+--memory-constraint YOUR/CONFIG  --data-set EVO_IMNET --output_dir ./result/evolution_0.9_20 /OUTPUT_PATH 
 ```
 
-### Test
-To test our trained models, you need to put the downloaded model in `/PATH/TO/CHECKPOINT`. After that you could use the following command to test the model (Please change your config file and model checkpoint according to different models. Here we use the AutoFormer-B as an example).
-```buildoutcfg
-python -m torch.distributed.launch --nproc_per_node=8 --use_env supernet_train.py --data-path /PATH/TO/IMAGENT --gp \
---change_qk --relative_position --mode retrain --dist-eval --cfg ./experiments/subnet/AutoFormer-B.yaml --resume /PATH/TO/CHECKPOINT --eval 
-```
-
-## Performance
-
-**Left:** Top-1 accuracy on ImageNet. Our method achieves very competitive performance, being superior to the recent DeiT and ViT. **Right:** 1000 random sampled good architectures in the supernet-S. The supernet trained under our strategy allows subnets to be well optimized.
-
-<div align="half">
-    <img src=".figure/performance.png" width="49%"/>
-    <img src=".figure/ofa.png" width="49%"/>
-</div>
-
-## Bibtex
-
-If this repo is helpful for you, please consider to cite it. Thank you! :)
-```bibtex
-@InProceedings{AutoFormer,
-    title     = {AutoFormer: Searching Transformers for Visual Recognition},
-    author    = {Chen, Minghao and Peng, Houwen and Fu, Jianlong and Ling, Haibin},
-    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
-    month     = {October},
-    year      = {2021},
-    pages     = {12270-12280}
-}
-```
-
-## Acknowledgements
-
-The codes are inspired by [HAT](https://github.com/mit-han-lab/hardware-aware-transformers), [timm](https://github.com/rwightman/pytorch-image-models), [DeiT](https://github.com/facebookresearch/deit), [SPOS](https://github.com/megvii-model/SinglePathOneShot).
+## Todo List
+We are fixing the code of detection and we will realease the enging code in few days.
