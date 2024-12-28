@@ -1,0 +1,12 @@
+torch==1.12.0+cu116
+torchaudio==0.12.0+cu116
+torchvision==0.13.0+cu116 
+timm
+scikit-image
+ptflops
+easydict
+PyYAML
+pillow==6.2.1
+torchvision
+opencv-python
+numpy==1.24.4
