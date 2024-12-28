@@ -1,0 +1,39 @@
+SUPERNET:
+  MLP_RATIO: 4.0
+  NUM_HEADS: 4
+  EMBED_DIM: 256
+  DEPTH: 14
+  RANK_RATIO:
+    - 0.6
+    - 0.65
+    - 0.7
+    - 0.75
+    - 0.8
+    - 0.85
+    - 0.9
+  PATCH_SIZE:
+    - 26
+    - 24
+    - 22
+    - 20
+  
+SEARCH_SPACE:
+  MLP_RATIO:
+    - 3.5
+    - 4
+  NUM_HEADS:
+    - 3
+    - 4
+  DEPTH:
+    - 12
+    - 13
+    - 14
+  EMBED_DIM:
+    - 192
+    - 216
+    - 240
+
+EVOLUTION:  
+  RANK_RATIO_ATTN: 0.74
+  RANK_RATIO_MLP: 0.86
+  PATCH_SIZE: 22
